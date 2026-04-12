@@ -1,6 +1,7 @@
 const db = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 // REGISTER
 exports.register = (req, res) => {
@@ -52,6 +53,72 @@ exports.login = (req, res) => {
         name: user.name,
         email: user.email,
       },
+    });
+  });
+};
+
+
+// FORGOT PASSWORD
+exports.forgotPassword = (req, res) => {
+  const { email } = req.body;
+
+  const sql = "SELECT * FROM users WHERE email = ?";
+
+  db.query(sql, [email], (err, result) => {
+    if (err || result.length === 0) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    const user = result[0];
+
+    // Generate token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    const expiry = Date.now() + 15 * 60 * 1000; // 15 mins
+
+    const updateSql =
+      "UPDATE users SET reset_token=?, reset_token_expiry=? WHERE id=?";
+
+    db.query(updateSql, [resetToken, expiry, user.id], (err) => {
+      if (err) {
+        return res.status(500).json({ message: "Error saving token" });
+      }
+
+      // In real app → send email
+      res.json({
+        message: "Reset token generated",
+        resetToken,
+      });
+    });
+  });
+};
+
+
+// RESET PASSWORD
+exports.resetPassword = (req, res) => {
+  const { token, newPassword } = req.body;
+
+  const sql =
+    "SELECT * FROM users WHERE reset_token=? AND reset_token_expiry > ?";
+
+  db.query(sql, [token, Date.now()], (err, result) => {
+    if (err || result.length === 0) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    const user = result[0];
+
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+
+    const updateSql =
+      "UPDATE users SET password=?, reset_token=NULL, reset_token_expiry=NULL WHERE id=?";
+
+    db.query(updateSql, [hashedPassword, user.id], (err) => {
+      if (err) {
+        return res.status(500).json({ message: "Password reset failed" });
+      }
+
+      res.json({ message: "Password reset successful" });
     });
   });
 };
