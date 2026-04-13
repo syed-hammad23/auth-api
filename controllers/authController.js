@@ -122,3 +122,45 @@ exports.resetPassword = (req, res) => {
     });
   });
 };
+
+exports.updateProfile = (req, res) => {
+  const userId = req.user.id;
+
+  const { name, email, age, phone } = req.body;
+
+  // cloudinary URL
+  const image = req.file ? req.file.path : null;
+
+  let sql = "";
+  let values = [];
+
+  if (image) {
+    sql =
+      "UPDATE users SET name=?, email=?, age=?, phone=?, image=? WHERE id=?";
+    values = [name, email, age, phone, image, userId];
+  } else {
+    sql =
+      "UPDATE users SET name=?, email=?, age=?, phone=? WHERE id=?";
+    values = [name, email, age, phone, userId];
+  }
+
+  db.query(sql, values, (err) => {
+    if (err) {
+      return res.status(500).json({ message: "Update failed" });
+    }
+
+    res.json({ message: "Profile updated successfully" });
+  });
+};
+
+
+exports.getProfile = (req, res) => {
+  const userId = req.user.id;
+
+  const sql =
+    "SELECT id, name, email, age, phone, image FROM users WHERE id=?";
+
+  db.query(sql, [userId], (err, result) => {
+    res.json({ user: result[0] });
+  });
+};
