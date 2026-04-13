@@ -123,10 +123,12 @@ exports.resetPassword = (req, res) => {
   });
 };
 
+
+//Udate Profile
 exports.updateProfile = (req, res) => {
   const userId = req.user.id;
 
-  const { name, email, age, phone } = req.body;
+  const { name, email, age, phone, latitude, longitude } = req.body;
 
   // cloudinary URL
   const image = req.file ? req.file.path : null;
@@ -136,12 +138,12 @@ exports.updateProfile = (req, res) => {
 
   if (image) {
     sql =
-      "UPDATE users SET name=?, email=?, age=?, phone=?, image=? WHERE id=?";
-    values = [name, email, age, phone, image, userId];
+      "UPDATE users SET name=?, email=?, age=?, phone=?, image=?, latitude=?, longitude=? WHERE id=?";
+    values = [name, email, age, phone, image, latitude, longitude, userId];
   } else {
     sql =
-      "UPDATE users SET name=?, email=?, age=?, phone=? WHERE id=?";
-    values = [name, email, age, phone, userId];
+      "UPDATE users SET name=?, email=?, age=?, phone=?, latitude=?, longitude=? WHERE id=?";
+    values = [name, email, age, phone, latitude, longitude, userId];
   }
 
   db.query(sql, values, (err) => {
@@ -158,7 +160,7 @@ exports.getProfile = (req, res) => {
   const userId = req.user.id;
 
   const sql =
-    "SELECT id, name, email, age, phone, image FROM users WHERE id=?";
+    "SELECT id, name, email, age, phone, image, latitude, longitude FROM users WHERE id=?";
 
   db.query(sql, [userId], (err, result) => {
     res.json({ user: result[0] });
