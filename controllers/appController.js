@@ -1,5 +1,5 @@
 const db = require("../config/db");
-
+const { sendPushNotification } = require("../services/notificationService");
 
 exports.findNearbyUsers = (req, res) => {
   const userId = req.user.id;
@@ -32,4 +32,59 @@ exports.findNearbyUsers = (req, res) => {
       });
     }
   );
+};
+
+
+
+exports.sendFriendRequest = (req, res) => {
+  const senderId = req.user.id;
+  const { receiverId } = req.body;
+
+  // Prevent sending to yourself
+  if (senderId == receiverId) {
+    return res.status(400).json({ message: "Cannot send request to yourself" });
+  }
+
+  // Check if already exists
+  const checkSql = `
+    SELECT * FROM friend_requests 
+    WHERE sender_id=? AND receiver_id=? AND status='pending'
+  `;
+
+  db.query(checkSql, [senderId, receiverId], (err, result) => {
+    if (result.length > 0) {
+      return res.status(400).json({ message: "Request already sent" });
+    }
+
+    const insertSql =
+      "INSERT INTO friend_requests (sender_id, receiver_id) VALUES (?, ?)";
+
+    db.query(insertSql, [senderId, receiverId], (err) => {
+      if (err) return res.status(500).json({ message: "Error sending request" });
+
+      // 🔔 Send notification
+      sendPushNotification(receiverId, "New Friend Request");
+
+      res.json({ message: "Friend request sent" });
+    });
+  });
+};
+
+
+
+
+exports.respondRequest = (req, res) => {
+  const { requestId, status } = req.body;
+
+  const sql = `
+    UPDATE friend_requests 
+    SET status=? 
+    WHERE id=?
+  `;
+
+  db.query(sql, [status, requestId], (err) => {
+    if (err) return res.status(500).json({ message: "Error updating request" });
+
+    res.json({ message: `Request ${status}` });
+  });
 };
